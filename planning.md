@@ -478,6 +478,60 @@ Before connecting anything to the endpoint:
   - Returns placeholder structured response
   - Does not crash on missing fields
 
+#### Generation prompt (verbatim)
+
+The exact prompt handed to the AI tool for this milestone:
+
+> **You are helping build a Flask backend called Provenance Guard, which classifies text as human-written or AI-generated.**
+>
+> **Design context — Detection Signal 1: Groq LLM Detector**
+> - Input: raw text string
+> - Output MUST be `{ "score": 0.0 to 1.0, "label": "AI" | "Human" }`, where `score` is the probability of AI-generated text.
+>
+> **API requirement — `POST /submit`**
+> - Accept JSON `{ "author": "string", "content": "string" }`
+> - Call the Groq detection function
+> - Return a placeholder combined response (confidence scoring not implemented yet)
+>
+> **Architecture constraint (M3 only):** no stylometric signal, no confidence scoring, no database/logging (stubs allowed).
+>
+> **Task — generate:**
+> 1. Flask app skeleton (`app.py`): Flask setup, `/submit` route stub, JSON request parsing, basic validation (missing `content`/`author` → error response).
+> 2. First detection signal function `groq_classify(text: str) -> dict` returning `{ "score": float 0–1, "label": "AI" | "Human" }`. Call the Groq model (mock if needed, but keep the exact interface).
+>
+> **Strict rules:** do not implement stylometric analysis, confidence scoring, or database/logging yet; match function signatures exactly; keep code minimal and modular.
+
+#### Output verification checklist
+
+What must be confirmed in the AI's output before using it:
+
+**A. Flask route correctness**
+
+- [x] Is `POST /submit`
+- [x] Accepts a JSON body
+- [x] Extracts `author` and `content`
+- [x] Returns a JSON response
+- [x] Handles missing fields safely (400 error)
+
+> ⚠️ Common AI mistakes: forgetting `request.get_json()`, returning plain strings instead of JSON, skipping validation.
+
+**B. Signal function correctness** — must match `groq_classify(text: str) -> dict`
+
+- [x] Input is `text: str`
+- [x] Output is a `dict`
+- [x] Contains `score` (float 0–1) and `label` (`"AI"` | `"Human"`)
+
+> ⚠️ Common AI mistakes: returning a label with no score (or vice versa); using a boolean instead of a probability; returning strings instead of a numeric score.
+
+**C. Architectural correctness**
+
+- [x] Signal function lives outside the Flask route (separate module)
+- [x] Route calls the function cleanly
+- [x] No premature merging with future pipeline stages
+- [x] No stylometric or confidence logic sneaked in early
+
+> **Implementation result.** `groq_classify` lives in `groq_detector.py`; the route in `app.py` calls it and returns a placeholder `{"signals": {"groq": ...}, "status": "received"}` response. All checklist items verified via `python groq_detector.py` (signal smoke test) and Flask's test client (route + validation). The detector calls Groq `llama-3.3-70b-versatile` and degrades to a deterministic, same-interface stub when no API key is present.
+
 ---
 
 ### M4 — Second Signal + Confidence Scoring
